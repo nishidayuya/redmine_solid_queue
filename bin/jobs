@@ -1,0 +1,16 @@
+#!/usr/bin/env ruby
+
+# This file's original is generated code from "bin/rails solid_queue:install"'s bin/jobs
+#
+# https://github.com/rails/solid_queue/blob/v1.2.0/lib/generators/solid_queue/install/templates/bin/jobs
+
+if !defined?(Rails)
+  require "pathname"
+
+  # If plugin directory is symlink, `require_relative` and `__dir__` are difficult to use
+  environment_path = Pathname("../../../../config/environment").expand_path(__FILE__)
+  require environment_path
+  require "solid_queue/cli"
+end
+
+SolidQueue::Cli.start(ARGV)
