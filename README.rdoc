@@ -1,3 +1,0 @@
-= redmine_solid_queue
-
-Description goes here
