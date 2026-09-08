@@ -1,8 +1,9 @@
 gem "solid_queue"
 
 # set queue_adapter :solid_queue as default
+module_name_method = Module.instance_method(:name)
 trace = TracePoint.new(:end) do |tp|
-  next if tp.self.name != "RedmineApp::Application"
+  next if module_name_method.bind_call(tp.self) != "RedmineApp::Application"
 
   trace.disable
 
