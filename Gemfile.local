@@ -1,0 +1,6 @@
+# Gems only for testing this plugin.
+#
+# Redmine does not load this file from plugins/*/. Add its content to Redmine's
+# Gemfile.local to run tests. agileware-jp/redmine-plugin orb's install-self
+# command copies it to Redmine's root directory on CircleCI.
+gem "test-unit"
