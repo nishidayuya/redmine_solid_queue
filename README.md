@@ -79,3 +79,24 @@ Remove plugin directory
 $ cd /path/to/redmine/plugins/
 $ rm -rf redmine_solid_queue_plugin
 ```
+
+## Development
+
+### Run tests
+
+Tests boot Redmine with `RAILS_ENV=development` in child processes, because Redmine's test environment overrides `config.active_job.queue_adapter`. They use and clean up `solid_queue_*` tables in the development database.
+
+Add the plugin's `Gemfile.local` to Redmine's `Gemfile.local` to install [test-unit](https://github.com/test-unit/test-unit), then setup the development database.
+
+```console
+$ cd /path/to/redmine/
+$ cat plugins/redmine_solid_queue/Gemfile.local >> Gemfile.local
+$ bundle install
+$ bin/rails db:create db:migrate redmine:plugins:migrate
+```
+
+Run tests in Redmine's root directory.
+
+```console
+$ bundle exec ruby plugins/redmine_solid_queue/test/run-test.rb
+```

@@ -1,0 +1,101 @@
+version: 2.1
+
+orbs:
+  redmine-plugin: agileware-jp/redmine-plugin@4.0.2
+
+executors:
+  # redmine-plugin/ruby-pg sets POSTGRES_PASSWORD "password", but
+  # redmine-plugin/generate-database_yml generates password "postgres".
+  ruby-pg:
+    parameters:
+      ruby_version:
+        type: string
+    docker:
+      - image: cimg/ruby:<< parameters.ruby_version >>-browsers
+        environment:
+          DATABASE_ADAPTER: postgresql
+      - image: cimg/postgres:18.6
+        environment:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: circle_test
+
+jobs:
+  test:
+    parameters:
+      redmine_version:
+        type: string
+      ruby_version:
+        type: string
+    executor:
+      name: ruby-pg
+      ruby_version: << parameters.ruby_version >>
+    environment:
+      # Tests boot Redmine with RAILS_ENV=development because Redmine's test
+      # environment overrides config.active_job.queue_adapter.
+      RAILS_ENV: development
+    steps:
+      - redmine-plugin/download-redmine:
+          version: << parameters.redmine_version >>
+      - redmine-plugin/install-self
+      - redmine-plugin/generate-database_yml
+      - run:
+          name: Use test database for development environment
+          working_directory: redmine
+          command: |
+            ruby -ryaml -e '
+              path = "config/database.yml"
+              config = YAML.load_file(path)
+              config["development"] = config["test"].dup
+              File.write(path, YAML.dump(config))
+            '
+      - redmine-plugin/bundle-install
+      - run:
+          name: Wait for database
+          command: |
+            for i in $(seq 60); do
+              if (echo > /dev/tcp/127.0.0.1/5432) 2> /dev/null; then
+                exit 0
+              fi
+              sleep 1
+            done
+            exit 1
+      - run:
+          name: Migrate database
+          working_directory: redmine
+          command: bin/rails db:create db:migrate redmine:plugins:migrate
+      - run:
+          name: Run tests
+          working_directory: redmine
+          command: bundle exec ruby plugins/redmine_solid_queue/test/run-test.rb
+      - store_artifacts:
+          path: redmine/tmp/redmine_solid_queue_test
+          destination: test-logs
+      - store_artifacts:
+          path: redmine/log/development.log
+          destination: development.log
+      - run:
+          name: Test migration rollback
+          working_directory: redmine
+          command: |
+            bin/rails redmine:plugins:migrate NAME=redmine_solid_queue VERSION=0
+            bin/rails runner '
+              tables = ActiveRecord::Base.connection.tables.grep(/\Asolid_queue_/)
+              abort("Tables remain: #{tables.join(", ")}") if !tables.empty?
+            '
+
+workflows:
+  test:
+    jobs:
+      - test:
+          name: test-redmine-6.0
+          redmine_version: "6.0"
+          ruby_version: "3.3"
+      - test:
+          name: test-redmine-6.1
+          redmine_version: "6.1"
+          ruby_version: "3.4"
+      - test:
+          name: test-redmine-7.0
+          redmine_version: "7.0"
+          ruby_version: "4.0"
