@@ -27,6 +27,10 @@ jobs:
         type: string
       ruby_version:
         type: string
+      rubygems_version:
+        description: RubyGems version to install. Keep image's one if empty.
+        type: string
+        default: ""
     executor:
       name: ruby-pg
       ruby_version: << parameters.ruby_version >>
@@ -49,6 +53,12 @@ jobs:
               config["development"] = config["test"].dup
               File.write(path, YAML.dump(config))
             '
+      - when:
+          condition: << parameters.rubygems_version >>
+          steps:
+            - run:
+                name: Install RubyGems << parameters.rubygems_version >>
+                command: sudo gem update --system << parameters.rubygems_version >>
       - redmine-plugin/bundle-install
       - run:
           name: Wait for database
@@ -95,6 +105,9 @@ workflows:
           name: test-redmine-6.1
           redmine_version: "6.1"
           ruby_version: "3.4"
+          # Redmine 6.1 depends on commonmarker 2.3, which requires
+          # RubyGems ~> 3.4, but cimg/ruby:3.4 has RubyGems 4.
+          rubygems_version: "3.7.2"
       - test:
           name: test-redmine-7.0
           redmine_version: "7.0"
